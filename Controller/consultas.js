@@ -122,4 +122,135 @@ export const eliminarUsuario = async (id) => {
     };
   }
 };
+
+// //  consultas de Productos //   //
+
+export const registrarProducto = async (producto, usuario_id) => {
+  try {
+    let { nombre_producto, descripcion, imagen, precio, stock } = producto;
+    const values = [
+      nombre_producto,
+      descripcion,
+      imagen,
+      precio,
+      stock,
+      usuario_id,
+    ];
+    const consulta =
+      "INSERT INTO productos (imagen, nombre_producto, descripcion, precio, stock,usuario_id) VALUES ($1, $2, $3, $4, $5, $6)";
+    await pool.query(consulta, values);
+    return { code: 201, message: "Producto registrado exitosamente" };
+  } catch (error) {
+    if (error.code === "23505") {
+      throw { code: 400, message: "El producto ya existe" };
+    }
+    throw { code: 500, message: "Error al registrar el producto" };
+  }
+};
+
+export const obtenerProductos = async () => {
+  try {
+    const consulta =
+      "SELECT id, imagen, nombre_producto, descripcion, precio, categoria_id FROM productos";
+    const { rows } = await pool.query(consulta);
+    if (rows.length === 0) {
+      return { message: "No hay productos registrados" };
+    }
+    return rows;
+  } catch (error) {
+    console.error("Error en obtenerProductos:", error);
+    throw { code: 500, message: "Error al obtener productos" };
+  }
+};
+
+export const obtenerProductosPorId = async (id) => {
+  try {
+    if (!id) throw { code: 400, message: "ID de producto no proporcionado" };
+    const consulta =
+      "SELECT id, imagen, nombre_producto, descripcion, precio, stock, categoria_id FROM productos WHERE id = $1";
+    const values = [id];
+    const { rows, rowCount } = await pool.query(consulta, values);
+
+    if (rowCount === 0) throw { code: 404, message: "Producto no encontrado" };
+    return rows[0];
+  } catch (error) {
+    console.error("Error al obtener producto:", error);
+    throw {
+      code: error.code || 500,
+      message: error.message || "Error interno obtener el producto",
+    };
+  }
+};
+
+export const actualizarProducto = async (id, datos) => {
+  try {
+    const { imagen, nombre_producto, descripcion, precio, stock } = datos;
+    // Validación para evitar valores undefined
+    if (!id || !nombre_producto || !precio || stock === undefined) {
+      throw { code: 400, message: "Datos incompletos o incorrectos" };
+    }
+    const values = [imagen, nombre_producto, descripcion, precio, stock, id];
+    const consulta = `
+              UPDATE productos 
+              SET imagen = $1, nombre_producto = $2, descripcion = $3, precio = $4, stock = $5
+              WHERE id = $6
+              RETURNING id, imagen, nombre_producto, descripcion, precio, stock
+          `;
+
+    const {
+      rows: [producto],
+      rowCount,
+    } = await pool.query(consulta, values);
+    if (!rowCount) throw { code: 404, message: "Producto no encontrado" };
+    return producto;
+  } catch (error) {
+    if (error) {
+      throw { code: 400, message: "El prodcuto ya esta actualizado" };
+    }
+    throw {
+      code: error.code || 500,
+      message: error.message || "Error al actualizar producto",
+    };
+  }
+};
+
+export const eliminarProducto = async (id) => {
+  try {
+    const values = [id];
+
+    // Verifico si el producto existe antes de eliminarlo
+    const productoExistente = await pool.query(
+      "SELECT id FROM productos WHERE id = $1",
+      values
+    );
+    if (productoExistente.rowCount === 0) {
+      throw { code: 404, message: "Producto no encontrado" };
+    }
+
+    // Elimino referencias en carrito_productos y detalle_pedido antes de eliminar el producto
+    await pool.query(
+      "DELETE FROM carrito_productos WHERE producto_id = $1",
+      values
+    );
+    await pool.query(
+      "DELETE FROM detalle_pedido WHERE producto_id = $1",
+      values
+    );
+
+    // elimino el producto
+    const consulta = "DELETE FROM productos WHERE id = $1 RETURNING id";
+    const { rowCount } = await pool.query(consulta, values);
+
+    if (rowCount === 0) throw { code: 404, message: "Producto no encontrado" };
+
+    return { message: "Producto eliminado con éxito" };
+  } catch (error) {
+    console.error("Error al eliminar producto:", error);
+    throw {
+      code: error.code && !isNaN(error.code) ? error.code : 500,
+      message: error.message || "Error al eliminar producto",
+    };
+  }
+};
+
 export { pool };
