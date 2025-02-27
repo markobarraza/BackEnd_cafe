@@ -3,6 +3,7 @@
 //npm install bcryptjs
 
 // import express from "express";
+const SECRET_KEY = process.env.JWT_SECRET || 'secretkey';
 import cors from "cors";
 import morgan from "morgan";
 import {
@@ -18,7 +19,8 @@ import {
   actualizarProducto,
   eliminarProducto,
 } from "./consultas.js";
-const express = require("express");
+import express from 'express';
+import jwt from 'jsonwebtoken'
 const app = express();
 const port = process.env.PORT || 3000;
 // middlewares
@@ -28,6 +30,8 @@ app.use(morgan("dev")); // Para loguear las peticiones HTTP en consola (solo en 
 app.listen(port, () => {
   console.log(`Servidor corriendo en http://localhost:${port}`);
 });
+
+
 
 // Ruta POST para registrar un nuevo usuario
 app.post("/usuarios", async (req, res) => {
@@ -67,18 +71,41 @@ app.get("/usuarios", async (req, res) => {
   }
 });
 
+
+
+
 // Ruta GET para obtener un usuario por ID
 app.get("/usuarios/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const usuario = await obtenerUsuarioPorId(id);
+    let userId = id;
+    // Si el usuario pide su propio perfil con "me", obtenemos el ID desde el token
+    if (id === "me") {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) throw { code: 401, message: "Acceso no autorizado" };
+
+        const decoded = jwt.verify(token, SECRET_KEY);
+        userId = decoded.id; // Usamos el ID del token
+    }
+    const usuario = await obtenerUsuarioPorId(userId);
     res.status(200).json(usuario);
+
+
+
+
   } catch (error) {
     res
       .status(error.code || 500)
       .json({ message: error.message || "Error al obtener el usuario" });
   }
 });
+
+
+
+
+
+
+
 
 // Ruta PUT para actualizar un usuario
 app.put("/usuarios/:id", async (req, res) => {
