@@ -38,6 +38,9 @@ export const verificarCredenciales = async (email, contrasena) => {
     }
 };
 
+
+
+
 export const obtenerUsuarios = async () => {
     try {
         const consulta = "SELECT id, nombre, email, direccion, rol FROM usuarios";
@@ -105,134 +108,68 @@ export const eliminarUsuario = async (id) => {
     }
 };
 
-// //  consultas de Productos //   //
 
-export const registrarProducto = async (producto, usuario_id) => {
-  try {
-    let { nombre_producto, descripcion, imagen, precio, stock } = producto;
-    const values = [
-      nombre_producto,
-      descripcion,
-      imagen,
-      precio,
-      stock,
-      usuario_id,
-    ];
-    const consulta =
-      "INSERT INTO productos (imagen, nombre_producto, descripcion, precio, stock,usuario_id) VALUES ($1, $2, $3, $4, $5, $6)";
-    await pool.query(consulta, values);
-    return { code: 201, message: "Producto registrado exitosamente" };
-  } catch (error) {
-    if (error.code === "23505") {
-      throw { code: 400, message: "El producto ya existe" };
+export const autenticarUsuario = (req, res, next) => {
+    try {
+        // Obtener el token del encabezado de la solicitud
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) throw { code: 401, message: "Acceso no autorizado: Token no proporcionado" };
+
+        // Verificar el token
+        const decoded = jwt.verify(token, SECRET_KEY);
+        req.usuario = decoded; // Almacenar la información del usuario en el objeto `req`
+
+        next(); // Continuar con la siguiente función (controlador)
+    } catch (error) {
+        res.status(error.code || 401).json({ message: error.message || "Token inválido o expirado" });
     }
-    throw { code: 500, message: "Error al registrar el producto" };
-  }
 };
+
+// Agregar producto
+export const agregarProducto = async (req) => {
+    try {
+        const { imagen, nombre_producto, descripcion, precio, stock } = req.body;
+        const usuario_id = req.usuario.id; // Obtener el ID del usuario desde el token
+
+        const values = [imagen, nombre_producto, descripcion, precio, stock, usuario_id];
+        const consulta = `
+            INSERT INTO productos (imagen, nombre_producto, descripcion, precio, stock, usuario_id)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `;
+        const { rows: [nuevoProducto] } = await pool.query(consulta, values);
+        return nuevoProducto;
+    } catch (error) {
+        throw { code: 500, message: "Error al agregar el producto" };
+    }
+};
+
 
 export const obtenerProductos = async () => {
-  try {
-    const consulta =
-      "SELECT id, imagen, nombre_producto, descripcion, precio, categoria_id FROM productos";
-    const { rows } = await pool.query(consulta);
-    if (rows.length === 0) {
-      return { message: "No hay productos registrados" };
+    try {
+        const consulta = "SELECT id, imagen, nombre_producto, descripcion, precio, stock, vendido, usuario_id FROM productos";
+        const { rows } = await pool.query(consulta);
+        if (rows.length === 0) {
+            return { message: "No hay productos registrados" };
+        }
+        return rows;
+    } catch (error) {
+        throw { code: 500, message: "Error al obtener los productos" };
     }
-    return rows;
-  } catch (error) {
-    console.error("Error en obtenerProductos:", error);
-    throw { code: 500, message: "Error al obtener productos" };
-  }
 };
 
-export const obtenerProductosPorId = async (id) => {
-  try {
-    if (!id) throw { code: 400, message: "ID de producto no proporcionado" };
-    const consulta =
-      "SELECT id, imagen, nombre_producto, descripcion, precio, stock, categoria_id FROM productos WHERE id = $1";
-    const values = [id];
-    const { rows, rowCount } = await pool.query(consulta, values);
 
-    if (rowCount === 0) throw { code: 404, message: "Producto no encontrado" };
-    return rows[0];
-  } catch (error) {
-    console.error("Error al obtener producto:", error);
-    throw {
-      code: error.code || 500,
-      message: error.message || "Error interno obtener el producto",
-    };
-  }
+export const obtenerProductosPorUsuario = async (usuario_id) => {
+    try {
+        const consulta = "SELECT id, imagen, nombre_producto, descripcion, precio, stock, vendido, usuario_id FROM productos WHERE usuario_id = $1";
+        const values = [usuario_id];
+        const { rows } = await pool.query(consulta, values);
+        if (rows.length === 0) {
+            return { message: "No hay productos registrados para este usuario" };
+        }
+        return rows;
+    } catch (error) {
+        throw { code: 500, message: "Error al obtener los productos del usuario" };
+    }
 };
 
-export const actualizarProducto = async (id, datos) => {
-  try {
-    const { imagen, nombre_producto, descripcion, precio, stock } = datos;
-    // Validación para evitar valores undefined
-    if (!id || !nombre_producto || !precio || stock === undefined) {
-      throw { code: 400, message: "Datos incompletos o incorrectos" };
-    }
-    const values = [imagen, nombre_producto, descripcion, precio, stock, id];
-    const consulta = `
-              UPDATE productos 
-              SET imagen = $1, nombre_producto = $2, descripcion = $3, precio = $4, stock = $5
-              WHERE id = $6
-              RETURNING id, imagen, nombre_producto, descripcion, precio, stock
-          `;
-
-    const {
-      rows: [producto],
-      rowCount,
-    } = await pool.query(consulta, values);
-    if (!rowCount) throw { code: 404, message: "Producto no encontrado" };
-    return producto;
-  } catch (error) {
-    if (error) {
-      throw { code: 400, message: "El prodcuto ya esta actualizado" };
-    }
-    throw {
-      code: error.code || 500,
-      message: error.message || "Error al actualizar producto",
-    };
-  }
-};
-
-export const eliminarProducto = async (id) => {
-  try {
-    const values = [id];
-
-    // Verifico si el producto existe antes de eliminarlo
-    const productoExistente = await pool.query(
-      "SELECT id FROM productos WHERE id = $1",
-      values
-    );
-    if (productoExistente.rowCount === 0) {
-      throw { code: 404, message: "Producto no encontrado" };
-    }
-
-    // Elimino referencias en carrito_productos y detalle_pedido antes de eliminar el producto
-    await pool.query(
-      "DELETE FROM carrito_productos WHERE producto_id = $1",
-      values
-    );
-    await pool.query(
-      "DELETE FROM detalle_pedido WHERE producto_id = $1",
-      values
-    );
-
-    // elimino el producto
-    const consulta = "DELETE FROM productos WHERE id = $1 RETURNING id";
-    const { rowCount } = await pool.query(consulta, values);
-
-    if (rowCount === 0) throw { code: 404, message: "Producto no encontrado" };
-
-    return { message: "Producto eliminado con éxito" };
-  } catch (error) {
-    console.error("Error al eliminar producto:", error);
-    throw {
-      code: error.code && !isNaN(error.code) ? error.code : 500,
-      message: error.message || "Error al eliminar producto",
-    };
-  }
-};
-
-export { pool };
