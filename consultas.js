@@ -147,17 +147,14 @@ export const agregarProducto = async (req) => {
 
 export const obtenerProductos = async () => {
     try {
-        const consulta = "SELECT id, imagen, nombre_producto, descripcion, precio, stock, vendido, usuario_id FROM productos";
-        const { rows } = await pool.query(consulta);
-        if (rows.length === 0) {
-            return { message: "No hay productos registrados" };
-        }
-        return rows;
+      const consulta = "SELECT id, imagen, nombre_producto, descripcion, precio, stock, vendido, usuario_id FROM productos";
+      const { rows } = await pool.query(consulta);
+      return rows.length > 0 ? rows : []; // Asegura que siempre sea un array
     } catch (error) {
-        throw { code: 500, message: "Error al obtener los productos" };
+      throw { code: 500, message: "Error al obtener los productos" };
     }
-};
-
+  };
+  
 
 export const obtenerProductosPorUsuario = async (usuario_id) => {
     try {
