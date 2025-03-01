@@ -170,3 +170,23 @@ export const obtenerProductosPorUsuario = async (usuario_id) => {
     }
 };
 
+
+// Agregar un producto al carrito
+export const agregarProductoAlCarrito = async (req) => {
+    try {
+        const { producto_id, cantidad } = req.body;
+        const usuario_id = req.usuario.id; // ID del usuario autenticado
+
+        const values = [usuario_id, producto_id, cantidad];
+        const consulta = `
+            INSERT INTO carrito_productos (usuario_id, producto_id, cantidad)
+            VALUES ($1, $2, $3)
+            RETURNING *
+        `;
+        const { rows: [carrito] } = await pool.query(consulta, values);
+        return carrito;
+    } catch (error) {
+        throw { code: 500, message: "Error al agregar el producto al carrito" };
+    }
+};
+

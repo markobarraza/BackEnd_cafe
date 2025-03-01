@@ -16,7 +16,8 @@ import {
   agregarProducto,
   autenticarUsuario,
   obtenerProductos,
-  obtenerProductosPorUsuario
+  obtenerProductosPorUsuario,
+  agregarProductoAlCarrito,
 } from "./consultas.js";
 import express from 'express';
 import jwt from 'jsonwebtoken'
@@ -161,6 +162,16 @@ app.get("/productos/usuario/:usuario_id", async (req, res) => {
     try {
         const productos = await obtenerProductosPorUsuario(usuario_id);
         res.status(200).json(productos);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
+});
+
+// Ruta POST para agregar un producto al carrito (protegida)
+app.post("/carrito", autenticarUsuario, async (req, res) => {
+    try {
+        const carrito = await agregarProductoAlCarrito(req);
+        res.status(201).json(carrito);
     } catch (error) {
         res.status(error.code || 500).json({ message: error.message });
     }
