@@ -16,8 +16,10 @@ import {
   agregarProducto,
   autenticarUsuario,
   obtenerProductos,
+  eliminarProducto,
   obtenerProductosPorUsuario,
   agregarProductoAlCarrito,
+  eliminarProductoDelCarrito,
 } from "./consultas.js";
 import express from 'express';
 import jwt from 'jsonwebtoken'
@@ -167,11 +169,32 @@ app.get("/productos/usuario/:usuario_id", async (req, res) => {
     }
 });
 
+// Ruta DELETE para eliminar un producto (protegida)
+app.delete("/productos/:id", autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await eliminarProducto(req);
+        res.status(200).json(resultado);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
+});
+
 // Ruta POST para agregar un producto al carrito (protegida)
 app.post("/carrito", autenticarUsuario, async (req, res) => {
     try {
         const carrito = await agregarProductoAlCarrito(req);
         res.status(201).json(carrito);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
+});
+
+
+// DELETE para un producto del carrito
+app.delete("/carrito/:id", autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await eliminarProductoDelCarrito(req);
+        res.status(200).json(resultado);
     } catch (error) {
         res.status(error.code || 500).json({ message: error.message });
     }

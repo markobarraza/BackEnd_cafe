@@ -170,6 +170,27 @@ export const obtenerProductosPorUsuario = async (usuario_id) => {
     }
 };
 
+// eliminar un producto
+export const eliminarProducto = async (req) => {
+    try {
+        const { id } = req.params; // ID del producto a eliminar
+        const usuario_id = req.usuario.id; // ID del usuario autenticado
+
+        // Verificar que el producto pertenezca al usuario autenticado
+        const consultaVerificacion = "SELECT usuario_id FROM productos WHERE id = $1";
+        const { rows: [producto], rowCount } = await pool.query(consultaVerificacion, [id]);
+        
+        if (!rowCount) throw { code: 404, message: "Producto no encontrado" };
+        if (producto.usuario_id !== usuario_id) throw { code: 403, message: "No tienes permiso para eliminar este producto" };
+
+        // Eliminar el producto
+        const consulta = "DELETE FROM productos WHERE id = $1 RETURNING *";
+        const { rows: [productoEliminado] } = await pool.query(consulta, [id]);
+        return { message: "Producto eliminado con éxito", producto: productoEliminado };
+    } catch (error) {
+        throw { code: error.code || 500, message: error.message || "Error al eliminar el producto" };
+    }
+};
 
 // Agregar un producto al carrito
 export const agregarProductoAlCarrito = async (req) => {
@@ -187,6 +208,29 @@ export const agregarProductoAlCarrito = async (req) => {
         return carrito;
     } catch (error) {
         throw { code: 500, message: "Error al agregar el producto al carrito" };
+    }
+};
+
+
+// Eliminar un producto del carrito
+export const eliminarProductoDelCarrito = async (req) => {
+    try {
+        const { id } = req.params; // ID del producto en el carrito
+        const usuario_id = req.usuario.id; // ID del usuario autenticado
+
+        // Verificar que el producto en el carrito pertenezca al usuario autenticado
+        const consultaVerificacion = "SELECT usuario_id FROM carrito_productos WHERE id = $1";
+        const { rows: [carrito], rowCount } = await pool.query(consultaVerificacion, [id]);
+        
+        if (!rowCount) throw { code: 404, message: "Producto no encontrado en el carrito" };
+        if (carrito.usuario_id !== usuario_id) throw { code: 403, message: "No tienes permiso para eliminar este producto del carrito" };
+
+        // Eliminar el producto del carrito
+        const consulta = "DELETE FROM carrito_productos WHERE id = $1 RETURNING *";
+        const { rows: [productoEliminado] } = await pool.query(consulta, [id]);
+        return { message: "Producto eliminado del carrito con éxito", producto: productoEliminado };
+    } catch (error) {
+        throw { code: error.code || 500, message: error.message || "Error al eliminar el producto del carrito" };
     }
 };
 
