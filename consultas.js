@@ -234,3 +234,17 @@ export const eliminarProductoDelCarrito = async (req) => {
     }
 };
 
+export const obtenerProductoPorId = async (id) => {
+    try {
+        const consulta = "SELECT id, imagen, nombre_producto, descripcion, precio, stock, vendido, usuario_id FROM productos WHERE id = $1";
+        const values = [id];
+        const { rows: [producto] } = await pool.query(consulta, values);
+        if (!producto) {
+            throw { code: 404, message: "Producto no encontrado" };
+        }
+        return producto;
+    } catch (error) {
+        throw { code: error.code || 500, message: error.message || "Error al obtener el producto" };
+    }
+};
+

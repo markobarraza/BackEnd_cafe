@@ -20,6 +20,7 @@ import {
   obtenerProductosPorUsuario,
   agregarProductoAlCarrito,
   eliminarProductoDelCarrito,
+  obtenerProductoPorId,
 } from "./consultas.js";
 import express from 'express';
 import jwt from 'jsonwebtoken'
@@ -34,7 +35,9 @@ app.listen(port, () => {
   console.log(`Servidor corriendo en http://localhost:${port}`);
 });
 
-
+app.get("/", (req, res) => {
+  res.send("Bienvenido a la API del backend café ☕");
+});
 
 // Ruta POST para registrar un nuevo usuario
 app.post("/usuarios", async (req, res) => {
@@ -164,6 +167,16 @@ app.get("/productos/usuario/:usuario_id", async (req, res) => {
     try {
         const productos = await obtenerProductosPorUsuario(usuario_id);
         res.status(200).json(productos);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
+});
+
+app.get("/productos/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const producto = await obtenerProductoPorId(id);
+        res.status(200).json(producto);
     } catch (error) {
         res.status(error.code || 500).json({ message: error.message });
     }
