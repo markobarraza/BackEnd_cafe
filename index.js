@@ -3,7 +3,7 @@
 //npm install bcryptjs
 
 // import express from "express";
-const SECRET_KEY = process.env.JWT_SECRET || 'secretkey';
+const SECRET_KEY = process.env.JWT_SECRET || "secretkey";
 import cors from "cors";
 import morgan from "morgan";
 import {
@@ -22,13 +22,8 @@ import {
   eliminarProductoDelCarrito,
   obtenerProductoPorId,
 } from "./consultas.js";
-<<<<<<< HEAD
-
-const express = require("express");
-=======
-import express from 'express';
-import jwt from 'jsonwebtoken'
->>>>>>> 27ea0a594040f313af721317615cbca7de9048cd
+import express from "express";
+import jwt from "jsonwebtoken";
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -82,9 +77,6 @@ app.get("/usuarios", async (req, res) => {
   }
 });
 
-
-
-
 // Ruta GET para obtener un usuario por ID
 app.get("/usuarios/:id", async (req, res) => {
   const { id } = req.params;
@@ -92,25 +84,20 @@ app.get("/usuarios/:id", async (req, res) => {
     let userId = id;
     // Si el usuario pide su propio perfil con "me", obtenemos el ID desde el token
     if (id === "me") {
-        const token = req.headers.authorization?.split(" ")[1];
-        if (!token) throw { code: 401, message: "Acceso no autorizado" };
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) throw { code: 401, message: "Acceso no autorizado" };
 
-        const decoded = jwt.verify(token, SECRET_KEY);
-        userId = decoded.id; // Usamos el ID del token
+      const decoded = jwt.verify(token, SECRET_KEY);
+      userId = decoded.id; // Usamos el ID del token
     }
     const usuario = await obtenerUsuarioPorId(userId);
     res.status(200).json(usuario);
-
-
-
-
   } catch (error) {
     res
       .status(error.code || 500)
       .json({ message: error.message || "Error al obtener el usuario" });
   }
 });
-
 
 // Ruta PUT para actualizar un usuario
 app.put("/usuarios/:id", async (req, res) => {
@@ -143,77 +130,72 @@ app.delete("/usuarios/:id", async (req, res) => {
   }
 });
 
-
-
 // Ruta POST para agregar un producto (protegida)
 app.post("/productos", autenticarUsuario, async (req, res) => {
-    try {
-        const nuevoProducto = await agregarProducto(req); // Pasar `req` para acceder al usuario autenticado
-        res.status(201).json(nuevoProducto);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  try {
+    const nuevoProducto = await agregarProducto(req); // Pasar `req` para acceder al usuario autenticado
+    res.status(201).json(nuevoProducto);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
 
 // Ruta GET para obtener todos los productos
 app.get("/productos", async (req, res) => {
-    try {
-        const productos = await obtenerProductos();
-        res.status(200).json(productos);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  try {
+    const productos = await obtenerProductos();
+    res.status(200).json(productos);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
 
-
-
 app.get("/productos/usuario/:usuario_id", async (req, res) => {
-    const { usuario_id } = req.params;
-    try {
-        const productos = await obtenerProductosPorUsuario(usuario_id);
-        res.status(200).json(productos);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  const { usuario_id } = req.params;
+  try {
+    const productos = await obtenerProductosPorUsuario(usuario_id);
+    res.status(200).json(productos);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
 
 app.get("/productos/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const producto = await obtenerProductoPorId(id);
-        res.status(200).json(producto);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  const { id } = req.params;
+  try {
+    const producto = await obtenerProductoPorId(id);
+    res.status(200).json(producto);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
 
 // Ruta DELETE para eliminar un producto (protegida)
 app.delete("/productos/:id", autenticarUsuario, async (req, res) => {
-    try {
-        const resultado = await eliminarProducto(req);
-        res.status(200).json(resultado);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  try {
+    const resultado = await eliminarProducto(req);
+    res.status(200).json(resultado);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
 
 // Ruta POST para agregar un producto al carrito (protegida)
 app.post("/carrito", autenticarUsuario, async (req, res) => {
-    try {
-        const carrito = await agregarProductoAlCarrito(req);
-        res.status(201).json(carrito);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  try {
+    const carrito = await agregarProductoAlCarrito(req);
+    res.status(201).json(carrito);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
-
 
 // DELETE para un producto del carrito
 app.delete("/carrito/:id", autenticarUsuario, async (req, res) => {
-    try {
-        const resultado = await eliminarProductoDelCarrito(req);
-        res.status(200).json(resultado);
-    } catch (error) {
-        res.status(error.code || 500).json({ message: error.message });
-    }
+  try {
+    const resultado = await eliminarProductoDelCarrito(req);
+    res.status(200).json(resultado);
+  } catch (error) {
+    res.status(error.code || 500).json({ message: error.message });
+  }
 });
