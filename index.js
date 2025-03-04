@@ -2,7 +2,8 @@
 //npm install dotenv jsonwebtoken
 //npm install bcryptjs
 
-import express from "express";
+// import express from "express";
+const SECRET_KEY = process.env.JWT_SECRET || 'secretkey';
 import cors from "cors";
 import morgan from "morgan";
 import {
@@ -12,22 +13,35 @@ import {
   obtenerUsuarioPorId,
   actualizarUsuario,
   eliminarUsuario,
-  registrarProducto,
+  agregarProducto,
+  autenticarUsuario,
   obtenerProductos,
-  obtenerProductosPorId,
-  actualizarProducto,
   eliminarProducto,
+  obtenerProductosPorUsuario,
+  agregarProductoAlCarrito,
+  eliminarProductoDelCarrito,
+  obtenerProductoPorId,
 } from "./consultas.js";
+<<<<<<< HEAD
 
 const express = require("express");
+=======
+import express from 'express';
+import jwt from 'jsonwebtoken'
+>>>>>>> 27ea0a594040f313af721317615cbca7de9048cd
 const app = express();
 const port = process.env.PORT || 3000;
+
 // middlewares
 app.use(cors()); // Habilita CORS para permitir peticiones de diferentes dominios
 app.use(express.json()); // Para manejar cuerpos de solicitud en formato JSON
 app.use(morgan("dev")); // Para loguear las peticiones HTTP en consola (solo en desarrollo)
 app.listen(port, () => {
   console.log(`Servidor corriendo en http://localhost:${port}`);
+});
+
+app.get("/", (req, res) => {
+  res.send("Bienvenido a la API del backend café ☕");
 });
 
 // Ruta POST para registrar un nuevo usuario
@@ -68,18 +82,35 @@ app.get("/usuarios", async (req, res) => {
   }
 });
 
+
+
+
 // Ruta GET para obtener un usuario por ID
 app.get("/usuarios/:id", async (req, res) => {
   const { id } = req.params;
   try {
-    const usuario = await obtenerUsuarioPorId(id);
+    let userId = id;
+    // Si el usuario pide su propio perfil con "me", obtenemos el ID desde el token
+    if (id === "me") {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) throw { code: 401, message: "Acceso no autorizado" };
+
+        const decoded = jwt.verify(token, SECRET_KEY);
+        userId = decoded.id; // Usamos el ID del token
+    }
+    const usuario = await obtenerUsuarioPorId(userId);
     res.status(200).json(usuario);
+
+
+
+
   } catch (error) {
     res
       .status(error.code || 500)
       .json({ message: error.message || "Error al obtener el usuario" });
   }
 });
+
 
 // Ruta PUT para actualizar un usuario
 app.put("/usuarios/:id", async (req, res) => {
@@ -112,124 +143,77 @@ app.delete("/usuarios/:id", async (req, res) => {
   }
 });
 
-// Rutas para Productos  //
 
-//Ruta Post para registrar productos
-app.post("/productos", async (req, res) => {
-  const { imagen, nombre_producto, descripcion, precio, stock, categoria_id } =
-    req.body;
 
-  try {
-    // Obtener usuario_id desde el token de autenticación
-    const usuario_id = req.usuario.id;
-    if (!usuario_id) {
-      return res.status(401).json({ message: "Usuario no autenticado" });
+// Ruta POST para agregar un producto (protegida)
+app.post("/productos", autenticarUsuario, async (req, res) => {
+    try {
+        const nuevoProducto = await agregarProducto(req); // Pasar `req` para acceder al usuario autenticado
+        res.status(201).json(nuevoProducto);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
     }
-    // Si no se envía categoria_id, asignar una por defecto (ejemplo: ID = 1)
-    const categoriaFinal = categoria_id || 1;
-    // Validaciones
-    if (!nombre_producto || !descripcion || !precio || !stock) {
-      return res
-        .status(400)
-        .json({ message: "Todos los campos son obligatorios" });
-    }
-    if (isNaN(precio) || isNaN(stock) || stock < 0 || precio <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Precio y stock deben ser valores válidos" });
-    }
-
-    // Registrar el producto
-    await registrarProducto({
-      imagen,
-      nombre_producto,
-      descripcion,
-      precio,
-      stock,
-      usuario_id,
-      categoria_id: categoriaFinal,
-    });
-
-    res.status(201).json({ message: "Producto registrado con éxito" });
-  } catch (error) {
-    console.error("Error al registrar producto:", error);
-    res.status(500).json({ message: "Error interno al registrar el producto" });
-  }
 });
 
-// Ruta GET para obtener todos los prodcutos
+// Ruta GET para obtener todos los productos
 app.get("/productos", async (req, res) => {
-  try {
-    // Para cosultas por filtros
-    // const { categoria, precio_min, precio_max } = req.query;
-    // const productos = await obtenerProductos({ categoria, precio_min, precio_max });
-    const productos = await obtenerProductos();
-
-    if (!productos || productos.length === 0) {
-      return res.status(404).json({ message: "No hay productos disponibles" });
+    try {
+        const productos = await obtenerProductos();
+        res.status(200).json(productos);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
     }
-
-    res.status(200).json(productos);
-  } catch (error) {
-    console.error("Error al obtener productos:", error);
-    res.status(error.code || 500).json({
-      message: error.message || "Error al obtener productos",
-    });
-  }
 });
 
-// Ruta PUT para actualizar un usuario
-app.put("/productos/:id", async (req, res) => {
-  const id = Number(req.params.id);
-  const { imagen, nombre_producto, descripcion, precio, stock } = req.body;
-  // Validaciones
-  if (!nombre_producto || !descripcion || !precio || stock === undefined) {
-    return res
-      .status(400)
-      .json({ message: "Todos los campos son obligatorios" });
-  }
-  if (precio <= 0 || stock < 0) {
-    return res
-      .status(400)
-      .json({ message: "Precio y stock deben ser valores positivos" });
-  }
-  try {
-    // Verificar si el producto existe antes de actualizarlo
-    const productoExistente = await obtenerProductosPorId(id);
-    if (!productoExistente) {
-      return res.status(404).json({ message: "Producto no encontrado" });
-    }
 
-    const productoActualizado = await actualizarProducto(id, {
-      imagen,
-      nombre_producto,
-      descripcion,
-      precio,
-      stock,
-    });
-    res.status(200).json({
-      message: "Producto actualizado correctamente",
-      producto: productoActualizado,
-    });
-  } catch (error) {
-    res
-      .status(error.code || 500)
-      .json({ message: error.message || "Error al actualizar el producto" });
-  }
+
+app.get("/productos/usuario/:usuario_id", async (req, res) => {
+    const { usuario_id } = req.params;
+    try {
+        const productos = await obtenerProductosPorUsuario(usuario_id);
+        res.status(200).json(productos);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
 });
 
-// Ruta DELETE para eliminar un prodcuto
-app.delete("/producto/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    const resultado = await eliminarProducto(id);
-    if (resultado.rowCount === 0) {
-      return res.status(404).json({ message: "Producto no encontrado" });
+app.get("/productos/:id", async (req, res) => {
+    const { id } = req.params;
+    try {
+        const producto = await obtenerProductoPorId(id);
+        res.status(200).json(producto);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
     }
-    res.status(200).json({ message: "Producto eliminado correctamente" });
-  } catch (error) {
-    res
-      .status(error.code || 500)
-      .json({ message: error.message || "Error al eliminar el producto" });
-  }
+});
+
+// Ruta DELETE para eliminar un producto (protegida)
+app.delete("/productos/:id", autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await eliminarProducto(req);
+        res.status(200).json(resultado);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
+});
+
+// Ruta POST para agregar un producto al carrito (protegida)
+app.post("/carrito", autenticarUsuario, async (req, res) => {
+    try {
+        const carrito = await agregarProductoAlCarrito(req);
+        res.status(201).json(carrito);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
+});
+
+
+// DELETE para un producto del carrito
+app.delete("/carrito/:id", autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await eliminarProductoDelCarrito(req);
+        res.status(200).json(resultado);
+    } catch (error) {
+        res.status(error.code || 500).json({ message: error.message });
+    }
 });
