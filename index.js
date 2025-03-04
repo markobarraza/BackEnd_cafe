@@ -2,7 +2,7 @@
 //npm install dotenv jsonwebtoken
 //npm install bcryptjs
 
-// import express from "express";
+import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import {
@@ -18,6 +18,7 @@ import {
   actualizarProducto,
   eliminarProducto,
 } from "./consultas.js";
+
 const express = require("express");
 const app = express();
 const port = process.env.PORT || 3000;
